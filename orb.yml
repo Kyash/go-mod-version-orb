@@ -1,0 +1,40 @@
+version: 2.1
+
+description: >
+  Reads the Go version from go.mod and passes it to a continuation
+  configuration as a pipeline parameter.
+
+display:
+  source_url: "https://github.com/Kyash/go-mod-version-orb"
+
+orbs:
+  continuation: circleci/continuation@1.1.0
+
+jobs:
+  prepare:
+    description: >
+      Reads the Go version from go.mod and starts the continuation pipeline.
+
+    docker:
+      - image: cimg/go:1.27
+
+    steps:
+      - checkout
+
+      - run:
+          name: Prepare Go Version parameter
+          command: |
+            go_version=$(go mod edit -json | jq -r '
+              (if .Toolchain == "default" then .Go else (.Toolchain // .Go) end) | ltrimstr("go")
+            ')
+
+            if [ -z "$go_version" ] || [ "$go_version" = "null" ]; then
+              echo "Go version could not be determined from go.mod" >&2
+              exit 1
+            fi
+
+            jq -n --arg version "$go_version" '{"go-version": $version}' > /tmp/pipeline-parameters.json
+
+      - continuation/continue:
+          parameters: /tmp/pipeline-parameters.json
+          configuration_path: .circleci/continue_config.yml
