@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Run tagpr
+        id: tagpr
+        uses: Songmu/tagpr@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install CircleCI CLI
+        if: steps.tagpr.outputs.tag != ''
+        run: |
+          curl -1sLf 'https://packages.circleci.com/public/setup.deb.sh' | sudo -E bash
+          sudo apt-get install -y circleci
+
+      - name: Validate and publish orb
+        if: steps.tagpr.outputs.tag != ''
+        env:
+          CIRCLE_TOKEN: ${{ secrets.CIRCLECI_ORB_PUBLISH_TOKEN }}
+          RELEASE_TAG: ${{ steps.tagpr.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          version="${RELEASE_TAG#v}"
+
+          circleci orb validate orb.yml
+          circleci orb publish orb.yml "kyash/go-mod-version@${version}"
