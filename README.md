@@ -27,7 +27,7 @@ version: 2.1
 setup: true
 
 orbs:
-  go-version: kyash/go-mod-version@1.0.0
+  go-version: kyash/go-mod-version@0.0.3
 
 workflows:
   setup:
